@@ -1,6 +1,6 @@
 # EarlGrey Reimplementation — Plans Overview
 
-Purpose: record detailed sub-steps for each major task in `ITERATION_PLAN.md`, list dependencies and logical order so work proceeds safely and testably.
+Purpose: record detailed sub-steps for each major task, list dependencies and logical order so work proceeds safely and testably.
 
 Logical order (recommended) and dependencies:
 
