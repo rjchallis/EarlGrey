@@ -1,0 +1,35 @@
+# Rust
+/target/
+**/target/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Nextflow / workflow
+work/
+.nextflow/
+
+# Build artifacts
+*.whl
+*.tar.gz
+
+# Singularity
+*.sif
+
+# Editor
+.vscode/
+.idea/
+
+# Additional ignores from rust-py-template
+*.so
+*.pyd
+dist/
+*.egg-info/
+.python-version
+.hypothesis/*
+!.hypothesis/examples/
+.env
+.env.*
+.DS_Store

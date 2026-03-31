@@ -1,0 +1,12 @@
+[package]
+name = "earlgrey-divergence"
+version = "0.1.0"
+edition = "2021"
+description = "Divergence and summary statistics computations for EarlGrey"
+
+[lib]
+name = "earlgrey_divergence"
+path = "src/lib.rs"
+
+[dependencies]
+# add dependencies as needed

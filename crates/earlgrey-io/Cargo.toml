@@ -1,0 +1,12 @@
+[package]
+name = "earlgrey-io"
+version = "0.1.0"
+edition = "2021"
+description = "Streaming FASTA/GFF IO and interval operations for EarlGrey"
+
+[lib]
+name = "earlgrey_io"
+path = "src/lib.rs"
+
+[dependencies]
+# add dependencies as needed

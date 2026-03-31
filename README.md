@@ -1,11 +1,20 @@
 ![earlGreyIcon](https://user-images.githubusercontent.com/46785187/136248346-21e980ee-1154-48c2-9398-70938bbe2404.png)
 
-[![DOI](https://zenodo.org/badge/412126708.svg)](https://zenodo.org/badge/latestdoi/412126708) [![Anaconda-Server Badge](https://anaconda.org/bioconda/earlgrey/badges/version.svg)](https://anaconda.org/bioconda/earlgrey) [![Anaconda_downloads](https://anaconda.org/bioconda/earlgrey/badges/downloads.svg)](
-https://anaconda.org/bioconda/earlgrey) [![Anaconda_platforms](https://anaconda.org/bioconda/earlgrey/badges/platforms.svg)](https://anaconda.org/bioconda/earlgrey) [![Anaconda-Server Badge](https://anaconda.org/bioconda/earlgrey/badges/latest_release_relative_date.svg)](https://anaconda.org/bioconda/earlgrey)
+[![DOI](https://zenodo.org/badge/412126708.svg)](https://zenodo.org/badge/latestdoi/412126708) [![Anaconda-Server Badge](https://anaconda.org/bioconda/earlgrey/badges/version.svg)](https://anaconda.org/bioconda/earlgrey) [![Anaconda_downloads](https://anaconda.org/bioconda/earlgrey/badges/downloads.svg)](https://anaconda.org/bioconda/earlgrey) [![Anaconda_platforms](https://anaconda.org/bioconda/earlgrey/badges/platforms.svg)](https://anaconda.org/bioconda/earlgrey) [![Anaconda-Server Badge](https://anaconda.org/bioconda/earlgrey/badges/latest_release_relative_date.svg)](https://anaconda.org/bioconda/earlgrey)
 
 # Earl Grey
 
 Earl Grey is a full-automated transposable element (TE) annotation pipeline, leveraging the most widely-used tools and combining these with a consensus elongation process to better define _de novo_ consensus sequences when annotating new genome assemblies.
+
+## Experimental refactor
+
+This repository now contains an experimental refactor branch focused on:
+
+- performance: reimplementing performance-critical components in Rust with Python bindings,
+- orchestration: migrating pipeline execution to Nextflow (DSL2) for reproducible workflows,
+- AB testing: enabling interchangeable components and measurable experiments to compare accuracy and speed.
+
+Work in `crates/` and `nextflow/` is scaffolded to support iterative reimplementation and benchmarking; APIs and interfaces may change. See [tests/validation/README.md](tests/validation/README.md) and `AGENTS.md` for equivalence-test requirements and development guidance.
 
 # Contents
 
@@ -46,17 +55,21 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 ```
 
 # Changes in Latest Release
+
 Earl Grey v7.2.1 patches a bug where the curated library directory was not created when an existing library was supplied via `-l` (without `-r`). In this case, `earlGreyAnnotationOnly` could fail when attempting to change into the directory during the final masking step. The directory is now created with `mkdir -p` before use, matching the fix already applied to the main `earlGrey` script.
 
 ### Previous Changes
+
 Earl Grey v7.2.0 significantly reduces peak RAM usage in two RAM-intensive components: TEstrainer and divergence_calc.py. These changes prevent OOM kills when running with large thread counts on memory-constrained compute nodes, with no change to output.
 
 **TEstrainer / TEstrainer_for_earlGrey.sh:**
+
 - The default `MEM_FREE` threshold raised from `200M` to `1G`. The previous value was lower than the startup cost of a single Python interpreter with heavy scientific libraries, making the guard ineffective.
 - All GNU `parallel` calls in the BEAT curation loop (trf, initial_mafft_setup, mafft, TEtrim) now carry `--memfree ${MEM_FREE}`, throttling job dispatch when free RAM drops below the threshold.
 - A RAM-cap guard is applied at startup: the requested thread count is capped based on available RAM (`free -m`) at an estimate of 800 MB per concurrent job, with a warning printed if a cap is applied.
 
 **divergence_calc.py:**
+
 - Switched from the default `fork` multiprocessing start method to `forkserver`. On Linux, `fork` duplicates the full parent address space (including the GFF DataFrame) into every worker; `forkserver` workers start clean and receive only a file path, eliminating N-fold GFF copies in RAM.
 - GFF chunks are now serialised to temp TSV files on disk before the pool is created. The parent DataFrame is freed before any workers are launched, reducing parent RSS during the pool run.
 - `pool.imap_unordered` replaces `pool.map`, allowing workers to be retired as they finish rather than all buffering results simultaneously.
@@ -136,7 +149,7 @@ As always, thank you to the TE community for your enthusiasm in using Earl Grey,
 
 Happy New Year! 🎉
 
-Earl Grey v6.3.6 patches a RepeatCraft bug that arises extremely rarely in specific genomes, linked to dictionary initialisation. 
+Earl Grey v6.3.6 patches a RepeatCraft bug that arises extremely rarely in specific genomes, linked to dictionary initialisation.
 
 Earl Grey v6.3.5 patches the annotation only pipeline to use the correct divergence calculator when a custom library is used without a RepBase term.
 
@@ -154,21 +167,21 @@ Earl Grey v6.1.0 reintroduces the `--curated` flag when known elements are used 
 
 Earl Grey v6.0.3 reduces CPU usage for TEstrainer to reduce memory pressure.
 
-Earl Grey v6.0.2 patches an issue where the use of existing libraries did not work with the new `famdb` formats. 
+Earl Grey v6.0.2 patches an issue where the use of existing libraries did not work with the new `famdb` formats.
 
 Earl Grey v6.0.1 contains small bug fixes to verify installed RepeatMasker Libraries correctly. There is now a Docker container for Earl Grey v6.0.1 that contains all partitions of Dfam (so it is BIG!).
 
-*Earl Grey v6.0.0 is here!* 
+_Earl Grey v6.0.0 is here!_
 
-There are some relatively large changes in this release, resulting in the jump to v6.0.0. 
+There are some relatively large changes in this release, resulting in the jump to v6.0.0.
 
-Importantly, Earl Grey has been updated to use *Dfam version 3.9*, with RepeatMasker 4.1.8 and famdb 2.0.1. This means that there is some extra configuration required to get the pipeline running. Upon first installation and running of Earl Grey, the pipeline will check whether RepeatMasker has been configured with the correct Dfam database partitions. If not, it will warn you, generate a script that you can modify and run to configure RepeatMasker, and provide instructions to `stdout` if you want to do this yourself.
+Importantly, Earl Grey has been updated to use _Dfam version 3.9_, with RepeatMasker 4.1.8 and famdb 2.0.1. This means that there is some extra configuration required to get the pipeline running. Upon first installation and running of Earl Grey, the pipeline will check whether RepeatMasker has been configured with the correct Dfam database partitions. If not, it will warn you, generate a script that you can modify and run to configure RepeatMasker, and provide instructions to `stdout` if you want to do this yourself.
 
 Please take care to configure Earl Grey v6 with ALL required partitions. More information on the partitioning can be found at [Dfam.org](https://dfam.org/releases/current/families/FamDB/README.txt).
 
 Earl Grey v5.1.1 will continue to work for those who are happy with Dfam v3.7, but we recommend upgrading to v6.0.0 to keep up to date with the latest improvements to the database.
 
-Earl Grey v5.1.1 contains very small patches to improve compatibility with publicly available genome sequencing data. In rare instances, strange characters in fasta headers were causing issues preventing the pipeline from running. These have been resolved in the preparation step. 
+Earl Grey v5.1.1 contains very small patches to improve compatibility with publicly available genome sequencing data. In rare instances, strange characters in fasta headers were causing issues preventing the pipeline from running. These have been resolved in the preparation step.
 
 In addition, new _pretty_ tables are now generated in the `summaryFiles` directory and at the end of a successful run. These contain the same information as the `txt` tables, but in the familiar pipe format for readability. These can be added to markdown files if required. One is produced for the high level count as well as for the family level count. Below is an example of the table that is printed at the end of Earl Grey runs as of `v5.1.1`:
 
@@ -185,18 +198,19 @@ In addition, new _pretty_ tables are now generated in the `summaryFiles` directo
 |Non-Repeat                                 |       9818125|          NA|        92.3451301|    10631990|              NA|
 ```
 
-Earl Grey v5.1.0 contains small changes that drastically improve memory usage in the divergence calculator. We have replaced the use of EMBOSS `water` with EMBOSS `matcher`, which reduces memory consumption on large alignments whilst remaining rigorous. For more information, please see the notes section in the [EMBOSS Manual](https://www.bioinformatics.nl/cgi-bin/emboss/help/matcher). This should prevent jobs running out of memory, particularly when using queuing systems and shared resources. 
+Earl Grey v5.1.0 contains small changes that drastically improve memory usage in the divergence calculator. We have replaced the use of EMBOSS `water` with EMBOSS `matcher`, which reduces memory consumption on large alignments whilst remaining rigorous. For more information, please see the notes section in the [EMBOSS Manual](https://www.bioinformatics.nl/cgi-bin/emboss/help/matcher). This should prevent jobs running out of memory, particularly when using queuing systems and shared resources.
 
 Big changes in the latest release!
 
-*Earl Grey v5.0.0 is here!* 
+_Earl Grey v5.0.0 is here!_
 
-This release incorporates the incremental improvements made throughout the life of version 4. 
+This release incorporates the incremental improvements made throughout the life of version 4.
 
 It is now possible to run some subroutines in Earl Grey (run either of these new commands with `-h` to see a list of options):
+
 - `earlGreyLibConstruct` can be used to run Earl Grey for _de novo_ TE detection, consensus generation, and improvement through the BEAT process. The output will be the strained TE consensus sequences, which can then be used for subsequent annotation. This is useful when you want to make a combined library from the libraries of several different genomes, where it is no longer required to waste time running annotations. Once the libraries are generated and you have curated them, you can then run the next step in isolation (next point!).
 - `earlGreyAnnotationOnly` can be used to run the final annotation and defragmentation steps in Earl Grey. This is useful if you have already run the BEAT process and have a library of _de novo_ TE consensus sequences that you would like to use to annotate a given genome. This script is also compatible with the `-r` flag to take known repeats from the databases used to configure RepeatMasker in addition to the custom repeat library.
-- *EXPERIMENTAL FEATURE:* I have also added an option to run [HELIANO](https://github.com/Zhenlisme/heliano) for improved detection of Helitrons, which are notoriously difficult to detect and classify using homology methods. This can be implemented by adding `-e yes` to the command line options after upgrading to v5.0.0. Currently, HELIANO annotations replace those which they overlap following the RepeatMasker run, which is performed during defragmentation (in a similar way to full-length LTRs being dealt with in `RepeatCraft`). Feedback is welcomed on this implementation, and I am continuing to test and improve the implementation of HELIANO within Earl Grey.
+- _EXPERIMENTAL FEATURE:_ I have also added an option to run [HELIANO](https://github.com/Zhenlisme/heliano) for improved detection of Helitrons, which are notoriously difficult to detect and classify using homology methods. This can be implemented by adding `-e yes` to the command line options after upgrading to v5.0.0. Currently, HELIANO annotations replace those which they overlap following the RepeatMasker run, which is performed during defragmentation (in a similar way to full-length LTRs being dealt with in `RepeatCraft`). Feedback is welcomed on this implementation, and I am continuing to test and improve the implementation of HELIANO within Earl Grey.
 - The settings used for HELIANO are: `--nearest -dn 6000 -flank_sim 0.5 -w 10000`. These can be modified in the earlGrey script of your specific installation.
 
 Thank you for your continued support and enthusiasm for Earl Grey!
@@ -206,6 +220,7 @@ Thank you for your continued support and enthusiasm for Earl Grey!
 Given an input genome, Earl Grey will run through numerous steps to identify, curate, and annotate transposable elements (TEs). We recommend running earlGrey within a tmux or screen session, so that you can log off and leave Earl Grey running.
 
 There are several required and optional parameters for your Earl Grey run:
+
 ```
 Required Parameters:
 		-g == genome.fasta
@@ -248,9 +263,10 @@ Following this, Earl Grey will run through several processes depending on the op
 
 For a more in-depth description of Earl Grey's steps, please refer to the implementation section in the [manuscript](https://academic.oup.com/mbe/article/41/4/msae068/7635926).
 
-The runtime of Earl Grey will depend on the repeat content of your input genome. Once finished, you will notice that a number of directories have been created by Earl Grey. The most important results are found within the "summaryFiles" folder, however intermediate results are kept in case you wish to use alignments for further manual curation or investigation, for example. NOTE: RepeatModeler2 remains the rate-limiting step, with runtimes leading into several days, or even weeks, with large repeat-rich genomes. This is normal. 
+The runtime of Earl Grey will depend on the repeat content of your input genome. Once finished, you will notice that a number of directories have been created by Earl Grey. The most important results are found within the "summaryFiles" folder, however intermediate results are kept in case you wish to use alignments for further manual curation or investigation, for example. NOTE: RepeatModeler2 remains the rate-limiting step, with runtimes leading into several days, or even weeks, with large repeat-rich genomes. This is normal.
 
 Directories created by earl grey:
+
 ```
 [speciesName]EarlGrey/
     |
@@ -357,7 +373,8 @@ Xu Z, Wang H. LTR_FINDER: an efficient tool for the prediction of full-length LT
 Ou S, Jiang N. LTR_FINDER_parallel: parallelization of LTR_FINDER enabling rapid identification of long terminal repeat retrotransposons. BioRxiv 2019:2–6.
 
 # Usage without installation
-If you would like to try Earl Grey, or prefer to use it in a browser, you can do this through [gitpod](https://gitpod.io). You can get 50 hours free per month and use Earl Grey within a preconfigured environment. Simply select this repository by pasting the repository URL, and the system will be automatically configured for you. You can then upload your genome of interest, and run Earl Grey as you would on the command line. 
+
+If you would like to try Earl Grey, or prefer to use it in a browser, you can do this through [gitpod](https://gitpod.io). You can get 50 hours free per month and use Earl Grey within a preconfigured environment. Simply select this repository by pasting the repository URL, and the system will be automatically configured for you. You can then upload your genome of interest, and run Earl Grey as you would on the command line.
 
 <img width="1919" alt="Screenshot 2023-09-29 at 13 38 43" src="https://github.com/TobyBaril/EarlGrey/assets/46785187/7dd2f2de-3c13-4553-b13a-007fdd8d94d6">
 
@@ -366,6 +383,7 @@ If you would like to try Earl Grey, or prefer to use it in a browser, you can do
 Earl Grey version 6 uses Dfam 3.9. After installation, you MUST configure Dfam partitions as needed. Earl Grey will generate the script to do this and provide guidance when you run it for the first time. You need to specify which partitions of Dfam and/or RepBase to configure Earl Grey with. Choose partitions carefully as the combination will highly influence your results, especially if you want to pre-mask your input genome.
 
 Earl Grey version 7.2.1 (latest stable release) with all required and configured dependencies is found in the `biooconda` conda channel. To install, simply run the following depending on your installation:
+
 ```
 # With conda
 conda create -n earlgrey -c conda-forge -c bioconda earlgrey=7.2.1
@@ -388,6 +406,7 @@ Please first follow the Docker on Mac installation [instructions here](https://d
 Next, we will create aliases to switch between arm and rosetta:
 
 We want a simple way to activate the x86 architecture. We can do this by adding the following to `~/.zshrc`:
+
 ```
 alias arm="env /usr/bin/arch -arm64 /bin/zsh --login"
 alias intel="env /usr/bin/arch -x86_64 /bin/zsh --login"
@@ -396,15 +415,16 @@ alias intel="env /usr/bin/arch -x86_64 /bin/zsh --login"
 Then close the terminal and open a new one.
 
 To activate the intel/rosetta environment, run the following in a new terminal:
+
 ```
 intel
 ```
 
 Next, get the Docker installation and run in an interactive terminal following the instructions in the next section below. You will only need to pull the container once, then can use it for all your Earl Grey needs.
 
-After this, you are ready to go! Just remember to activate the _intel_ terminal before starting the interactive container and running Earl Grey. 
+After this, you are ready to go! Just remember to activate the _intel_ terminal before starting the interactive container and running Earl Grey.
 
-# Docker Container 
+# Docker Container
 
 A Docker container has been generated with none of Dfam 3.9, but with script generation to source required partitions
 
@@ -446,5 +466,4 @@ docker run -v 'pwd':/data/ yourdockerusername/earlgrey:version7.2.1-configured e
 
 # alternatively you can still run interactive sessions
 docker run -it -v 'pwd':/data/ yourdockerusername/earlgrey:version7.2.1-configured
-``` 
-
+```

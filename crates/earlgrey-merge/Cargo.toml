@@ -1,0 +1,12 @@
+[package]
+name = "earlgrey-merge"
+version = "0.1.0"
+edition = "2021"
+description = "Defragmentation and merging logic for EarlGrey"
+
+[lib]
+name = "earlgrey_merge"
+path = "src/lib.rs"
+
+[dependencies]
+# add dependencies as needed

@@ -1,0 +1,27 @@
+[package]
+name = "earlgrey_bindings"
+version = "0.1.0"
+edition = "2021"
+description = "Python bindings (pyo3) for EarlGrey Rust crates"
+
+[lib]
+name = "earlgrey_bindings"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# pyo3 is optional; enable via the `extension-module` feature below so that
+# `cargo test` (which links without libpython) can run without the extension.
+pyo3 = { version = "0.18", optional = true }
+earlgrey-io = { path = "../earlgrey-io" }
+earlgrey-merge = { path = "../earlgrey-merge" }
+earlgrey-divergence = { path = "../earlgrey-divergence" }
+
+[package.metadata.maturin]
+name = "earlgrey_bindings"
+
+[features]
+default = []
+# When building wheels, maturin passes `--features extension-module` which
+# enables the optional `pyo3` dependency and activates the pyo3 extension
+# module feature so the crate is built as a Python extension.
+extension-module = ["dep:pyo3", "pyo3/extension-module"]
