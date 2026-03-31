@@ -27,16 +27,27 @@ Logical order (recommended) and dependencies:
    - Dependencies: (1) baseline metrics; (3) interfaces to insert variants.
    - Rationale: decide wrap vs reimplement based on measured tradeoffs.
 
-7. Rust reimplementations (parsers, merging, divergence)
-   - Dependencies: stable component interfaces (3), benchmarks (1), and AB harness (4). Start with parsers and merging logic.
+7. Rust reimplementations — parsers
+   - Dependencies: stable component interfaces (4), benchmarks (2), and AB harness (5).
+   - Rationale: implement high-throughput, low-memory GFF/FASTA parsers in Rust with stable Python bindings. Add unit tests and an automated equivalence test (see `tests/validation/`) before replacing the Python implementation.
 
-8. Containerize modules & images
-   - Dependencies: packaging of wrapped tools and Rust artifacts; follow container image policy (completed).
+8. Rust reimplementations — merging
+   - Dependencies: stable component interfaces (4), parsers (7), benchmarks (2), and AB harness (5).
+   - Rationale: implement repeat merging / defragmentation and interval operations in Rust to reduce memory and CPU overhead; include equivalence tests and microbenchmarks.
 
-9. Validation & AB experiments
-   - Dependencies: (4), (6), (7) to compare performance and accuracy across variants.
+9. Rust reimplementations — divergence
+   - Dependencies: stable component interfaces (4), parsers (7), merging (8), benchmarks (2), and AB harness (5).
+   - Rationale: reimplement divergence calculations (`divergence_calc.py`) focusing on memory efficiency and parallelism; validate results with equivalence tests and end-to-end metrics.
 
-10. Documentation & CI tests
+10. Containerize modules & images
+
+- Dependencies: packaging of wrapped tools and Rust artifacts (7-9); follow container image policy (completed).
+
+11. Validation & AB experiments
+
+- Dependencies: (4), (6), (7-9) to compare performance and accuracy across variants.
+
+12. Documentation & CI tests
 
 - Dependencies: stable pipeline and artifacts; add tests and nf-core alignment once interfaces stable.
 
