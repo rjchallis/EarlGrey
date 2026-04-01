@@ -387,9 +387,11 @@ Earl Grey version 7.2.1 (latest stable release) with all required and configured
 ```
 # With conda
 conda create -n earlgrey -c conda-forge -c bioconda earlgrey=7.2.1
+conda activate earlgrey
 
 # With mamba
 mamba create -n earlgrey -c conda-forge -c bioconda earlgrey=7.2.1
+mamba activate earlgrey
 
 # Then run
 earlGrey

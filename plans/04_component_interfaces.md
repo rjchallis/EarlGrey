@@ -9,6 +9,7 @@ Interfaces (suggested)
 1. `io` / streaming crate (Rust):
    - Functions: `stream_fasta(path) -> Stream<SeqRecord>`, `stream_gff(path) -> Stream<GffRecord>`, `write_fasta(stream, path)`, `write_gff(stream, path)`
    - Behaviour: streaming; minimal memory; preserve comments/attributes; provide fast interval queries.
+   - **blobtk coverage:** `file_reader(path)` in `blobtk::io` satisfies the location/compression-agnostic opening for all of the above. FASTA streaming is satisfied by `needletail` (already a blobtk dep). GFF streaming must be implemented in `earlgrey-io` — no blobtk equivalent. Add blobtk as a path dep rather than reimplementing the reader layer.
 
 2. `intervals` crate (Rust):
    - API: `merge_intervals(iterable)`, `subtract_intervals(a, b)`, `overlap_join(a, b)`

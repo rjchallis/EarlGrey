@@ -1,0 +1,35 @@
+# Example baseline configuration for remote submission
+# Copy this file to `config/baseline_config.yaml` and edit for your environment.
+# Note: this file is safe to commit; the live config `config/baseline_config.yaml` should be kept local/private.
+
+ssh_host: mycluster
+# Use an SSH host alias from your ~/.ssh/config. Do NOT store passwords or private keys here.
+
+remote:
+  data_dir: /scratch/team301/data
+  work_dir: /scratch/team301/work
+  project: team301
+  queue: basement
+  init: |
+    module load lsf
+    module load nextflow
+    module load singularity
+
+bsub_defaults:
+  n: 8            # number of tasks / cores
+  mem: 16000      # memory in MB
+  queue: basement
+  project: team301
+  out: fastga.%J
+  err: fastga.er.%J
+
+assemblies:
+  - id: yeast_R64
+    url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_genomic.fna.gz
+    filename: GCF_000146045.2_R64_genomic.fna.gz
+    species: Saccharomyces_cerevisiae
+    out_dir: yeast_R64
+    threads: 8
+    repeat_term: eukarya
+
+# End of example

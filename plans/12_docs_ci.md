@@ -13,6 +13,10 @@ CI
 
 - Quick checks on PRs:
   - Lint Python files, run small unit tests, build the `earlgrey-io` crate if present in a matrix (no heavy containers), and run static checks.
+  - **maturin build step:** the `earlgrey-bindings` Python extension must be rebuilt with `maturin develop --features extension-module` any time `crates/earlgrey-bindings/` or `crates/earlgrey-io/` changes. Add this as an explicit CI step before running `pytest tests/python/`. On CI, use `maturin build --release --features extension-module` and install the wheel, rather than `develop`, to avoid needing the Rust toolchain at test time.
+  - Include `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` in the Rust CI job.
+  - Include `pyright` strict-mode check on `crates/earlgrey-bindings/python/` and `tests/python/`.
+  - **blobtk path dep:** the CI runner must check out `../../blobtoolkit/blobtk` (or pin a git dep in `Cargo.toml`) so the path dependency resolves. Document this in `docs/developer.md` and add a check to the CI config.
 - Optional: provide a nightly job that builds containers and runs a small end-to-end smoke test on example data.
 
 Deliverables

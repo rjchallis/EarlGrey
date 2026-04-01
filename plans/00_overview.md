@@ -30,6 +30,7 @@ Logical order (recommended) and dependencies:
 7. Rust reimplementations — parsers
    - Dependencies: stable component interfaces (4), benchmarks (2), and AB harness (5).
    - Rationale: implement high-throughput, low-memory GFF/FASTA parsers in Rust with stable Python bindings. Add unit tests and an automated equivalence test (see `tests/validation/`) before replacing the Python implementation.
+   - **blobtk reuse:** the `blobtk` crate (at `../../blobtoolkit/blobtk/rust`) already provides a location- and compression-agnostic `file_reader()` (local plain/gz, http, ssh) and gz-aware writers. Add it as a Cargo path dependency in `earlgrey-io` to avoid reimplementing IO. FASTA streaming is covered by `needletail` (a direct blobtk dependency). GFF3 parsing and interval operations have no blobtk equivalent and must be written fresh. See `07_rust_parsers.md` for the full reuse matrix.
 
 8. Rust reimplementations — merging
    - Dependencies: stable component interfaces (4), parsers (7), benchmarks (2), and AB harness (5).
@@ -66,3 +67,7 @@ File mappings (extracted from previous ITERATION_PLAN.md)
 - Divergence: `scripts/divergenceCalc/divergence_calc.py` -> candidate for Rust reimplementation.
 - Examples/tests: `scripts/repeatCraft/example/` -> small test corpus for CI and profiling.
 - Container & build: `Docker/Dockerfile`, `Docker/getFiles.sh`, `conda/meta.yaml` -> containerisation and build references.
+
+Foundation dependency
+
+- `blobtk` crate (`../../blobtoolkit/blobtk/rust`) provides reusable IO utilities (location/compression-agnostic readers, gz writers, CSV helpers) and FASTA streaming via `needletail`. Use it as a Cargo path dependency in `earlgrey-io` rather than reimplementing these. The `blobtk` pip package (already published) exposes `blobtk.filter.fastx` for FASTA subsampling; additional EarlGrey-specific Python bindings should live in `earlgrey-bindings` rather than requiring blobtk changes.
