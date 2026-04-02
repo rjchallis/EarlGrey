@@ -1,0 +1,9 @@
+# Site-local Makefile overrides — copy this file to Makefile.local and edit.
+# Makefile.local is gitignored; never commit it.
+#
+# Set these to the remote paths for your two reference runs so you can call
+#   make collect-metrics
+# without specifying them on the command line each time.
+
+BASELINE_RUN ?= /path/to/remote/work/yeast_R64
+CURRENT_RUN  ?= /path/to/remote/work/yeast_R64_baseline_iter_001

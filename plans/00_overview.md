@@ -2,7 +2,30 @@
 
 Purpose: record detailed sub-steps for each major task, list dependencies and logical order so work proceeds safely and testably.
 
-Logical order (recommended) and dependencies:
+---
+
+## Current status (2026-04-02)
+
+### Completed
+
+- **Steps 1–2** (HPC setup, baseline profiling): done. Two baseline yeast_R64 runs committed under `agent-logs/`. Baseline metrics available for comparison.
+- **Step 3** (Nextflow scaffold): **functionally complete.** All 10 DSL2 process modules implemented and wired in `main.nf`. First end-to-end run on yeast_R64 (`yeast_r64_nextflow_001`) in progress on the cluster.
+  - Submission tooling (`devtools/nextflow_submit.py`, `devtools/Makefile`) fully working.
+  - Key fixes applied during first live runs: params block moved to `nextflow.config` (Nextflow 25.x), `executor.perJobMemLimit = true` for Sanger farm esub, `beforeScript` to activate conda env in sub-jobs, `\n`/`\t` escaping in `shell:` blocks.
+
+### Active
+
+- **Step 3 validation**: waiting for `yeast_r64_nextflow_001` to complete. Once done, run `make nextflow-collect-metrics` and compare against baseline.
+
+### Up next
+
+- **Step 4** (component interfaces): stabilise inputs/outputs for each process now that the pipeline runs end-to-end.
+- **Step 5** (metrics & AB harness): wire `trace.txt` comparison into the harness once a clean run exists.
+- **Step 10** (containerisation): replace `beforeScript` conda activation with proper Singularity container images. See `10_containerization.md` and `plans/` notes.
+
+---
+
+## Logical order (recommended) and dependencies:
 
 1. HPC SSH/LSF execution setup
    - Dependencies: SSH access to cluster, Nextflow & Java on login node, Singularity (or equivalent) on compute nodes, and a shared storage area for images/data.

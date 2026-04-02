@@ -10,6 +10,11 @@ remote:
   work_dir: /scratch/team301/work
   project: team301
   queue: basement
+  # Path to the EarlGrey scripts/ directory on the remote.  The submit helper
+  # rsyncs both nextflow/ and scripts/ to remote_pipeline_root and this path
+  # is passed as --script_dir to the Nextflow pipeline.
+  # Leave blank to auto-derive as <remote_pipeline_root>/scripts.
+  scripts_dir: ''
   init: |
     module load lsf
     module load nextflow

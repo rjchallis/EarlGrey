@@ -363,6 +363,9 @@ def make_job_script(
     remote_data_file: str, species: str, out_dir: str, threads: int, repeat_term: str, remote_init: str = ""
 ) -> str:
     # job script executed on the remote login node (and then by the compute node via bsub)
+    # Use /usr/bin/time -v to capture detailed metrics
+    metrics_file = os.path.join(out_dir, "earlgrey_metrics.txt")
+
     script = textwrap.dedent(
         f"""
         #!/bin/bash
@@ -384,7 +387,11 @@ def make_job_script(
         mkdir -p '{out_dir}'
 
         echo "Running earlGrey on {remote_data_file}"
-        earlGrey -g '{remote_data_file}' -s '{species}' -o '{out_dir}' -r '{repeat_term}' -t {threads}
+        /usr/bin/time -v earlGrey -g '{remote_data_file}' -s '{species}' -o '{out_dir}' -r '{repeat_term}' -t {threads} 2> '{metrics_file}' || {{
+            # earlGrey may fail but we still want to save metrics
+            echo "earlGrey failed with exit code $?" >> '{metrics_file}'
+            exit 1
+        }}
     """
     )
     return script

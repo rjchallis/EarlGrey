@@ -45,3 +45,52 @@ Deliverables
 Next steps
 
 - I can scaffold a minimal `metrics/collector.py` and example `variants.json` now unless you prefer to iterate on schema first.
+
+---
+
+## 5a — Resource scaling calibration (genome-size model)
+
+**Goal:** Derive per-process memory scaling coefficients from real trace data so
+`nextflow.config` can set sensible defaults without over-requesting, while retry
+escalation covers the tail.
+
+### Why
+
+Repeat content and therefore peak memory for CLASSIFY_REPEATS and MERGE_REPEATS
+correlates with genome size. Two data points (e.g. yeast 12 MB and a ~500 MB
+invertebrate) are enough to fit a linear model `mem = base + k * genome_bytes`.
+
+### Data collection
+
+For each completed run collect from `trace.txt`:
+
+- `peak_rss` (MB) for CLASSIFY_REPEATS, MERGE_REPEATS, CALCULATE_DIVERGENCE
+- `realtime` for all processes
+- genome size in bytes (available from `genome.size()` in Nextflow or `stat`)
+
+Record in a simple table:
+
+| genome    | size (MB) | CLASSIFY peak_rss (GB) | MERGE peak_rss (GB) | CLASSIFY realtime |
+| --------- | --------- | ---------------------- | ------------------- | ----------------- |
+| yeast R64 | 12        | 5.7                    | ?                   | 18m 55s           |
+| _(next)_  |           |                        |                     |                   |
+
+Target: at least 3 genomes spanning 10 MB → 1 GB to fit the model.
+Candidate genomes to add to `baseline_config.yaml`: a small insect (~200 MB),
+a plant or fish (~500 MB–1 GB).
+
+### Action
+
+1. After each successful Nextflow run, run `make nextflow-collect-metrics` and
+   append the relevant rows to the table above.
+2. Once ≥3 data points exist, fit `mem = base + k * genome_size` for
+   CLASSIFY_REPEATS and MERGE_REPEATS.
+3. Update `nextflow.config` resource blocks to use the fitted model:
+   ```groovy
+   // Example — tune base and k from real data
+   withName: 'CLASSIFY_REPEATS' {
+       memory = { check_max( (8.GB + (long)(genome.size() * 450)) * task.attempt, 'memory' ) }
+   }
+   ```
+4. Keep retry escalation (`task.attempt` multiplier) as the safety net for
+   outlier genomes.

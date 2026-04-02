@@ -47,6 +47,53 @@ A lightweight Makefile wraps the helper scripts for convenience. Use the Makefil
 - `nextflow-submit` — submit Nextflow runner job
 - `extract-chr1` — extract first sequence locally from a remote URL
 - `extract-chr1-remote` — extract first sequence **on the remote cluster** (recommended)
+- `collect-metrics` — compare metrics from baseline and current run
+
+## Metrics collection and profiling
+
+### Overview
+
+Each baseline run automatically collects detailed performance metrics using `/usr/bin/time -v`. These metrics are captured to `earlgrey_metrics.txt` in the output directory and can be compared between runs to identify performance improvements or regressions.
+
+**Captured metrics include:**
+
+- Wallclock time (elapsed)
+- User and system CPU time
+- Peak resident set size (memory)
+- CPU utilization percentage
+- Major and minor page faults
+- File system I/O operations
+
+### Workflow
+
+1. **Run baseline:** Submit a job normally with `make submit ID=yeast_R64 OUT_DIR=my_run_001`
+2. **Wait for completion:** Monitor via `ssh` or check `bjobs` on farm
+3. **Collect metrics:** `make collect-metrics BASELINE_RUN=<baseline_dir> CURRENT_RUN=<current_dir>`
+
+### Example: Compare two runs
+
+```bash
+# Initial baseline run (already completed)
+baseline_dir=/path/to/remote/work/yeast_R64
+
+# New run to compare
+make submit ID=yeast_R64 OUT_DIR=yeast_R64_baseline_iter_001
+
+# Wait for job to finish, then collect metrics
+make collect-metrics \
+  BASELINE_RUN=$baseline_dir \
+  CURRENT_RUN=/path/to/remote/work/yeast_R64_baseline_iter_001
+```
+
+This produces a comparison table and saves detailed metrics to `metrics_comparison.json`.
+
+### Instrumented wrapper (optional)
+
+An alternative instrumented wrapper script (`earlgrey_instrumented.py`) is available for local runs with richer per-step metrics collection (parsing earlGrey logs for per-component timing). It is not currently integrated into the remote job submission flow but can be used for local testing:
+
+```bash
+python3 devtools/earlgrey_instrumented.py -g <genome.fna> -s <species> -o <output> --metrics-file metrics.json
+```
 
 **Makefile variables:**
 

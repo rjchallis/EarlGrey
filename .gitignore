@@ -28,6 +28,10 @@ work/
 dist/
 *.egg-info/
 .python-version
+
+# devtools — site-local overrides and generated output
+devtools/Makefile.local
+devtools/metrics_comparison.json
 .hypothesis/*
 !.hypothesis/examples/
 .env
