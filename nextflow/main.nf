@@ -206,7 +206,7 @@ workflow {
         heliano_gff_ch = HELIANO.out.gff
     } else {
         heliano_gff_ch = PREPARE_GENOME.out.genome
-            .map { meta, _genome -> [ meta, file("${projectDir}/assets/NO_FILE") ] }
+            .map { m, _genome -> [ m, file("${projectDir}/assets/NO_FILE") ] }
     }
 
     // ── Step 8: Defragment repeat annotations ────────────────────────────────

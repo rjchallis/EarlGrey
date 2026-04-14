@@ -258,6 +258,11 @@ def main(argv: Optional[list] = None) -> None:
         nf_parts.append(f"--repeat_species '{args.repeat_species}'")
     if asm.get("repeat_term"):
         nf_parts.append(f"--repeat_type '{asm['repeat_term']}'")
+    # Optional feature flags from config
+    if asm.get("soft_mask"):
+        nf_parts.append("--soft_mask")
+    if asm.get("heliano"):
+        nf_parts.append("--heliano")
     if args.extra_args:
         # Avoid duplicating -resume if it's already in the static command
         extra = args.extra_args.strip()
@@ -312,8 +317,39 @@ def main(argv: Optional[list] = None) -> None:
         )
         rsync_dir(ssh_host, local_scripts_dir, remote_scripts_dir)
 
-    # ── Submit job ────────────────────────────────────────────────────────────
+    # ── Load baseline module (used for both fetch and submit) ──────────────────
     baseline = load_baseline_module(devtools_dir)
+
+    # ── Fetch genome file if needed ────────────────────────────────────────────
+    # The genome file must exist on the remote before Nextflow can access it
+    url = asm.get("url")
+    filename = asm.get("filename")
+    if url and filename:
+        remote_data_root = cfg["remote"]["data_dir"]
+        data_dir_id = asm.get("out_dir") or args.id
+        remote_data_dir = os.path.join(remote_data_root, data_dir_id)
+        decompress_cfg = asm.get("decompress_gz", cfg.get("decompress_gz", True))
+        decompress = bool(decompress_cfg)
+
+        print(f"Ensuring genome file on remote host {ssh_host}...")
+        try:
+            remote_data_file = baseline.ensure_remote_file(
+                ssh_host,
+                url,
+                remote_data_dir,
+                filename,
+                decompress=decompress,
+                remote_init=remote_init,
+                debug=args.debug_remote,
+            )
+            print(f"✓ Genome file ready: {remote_data_file}")
+        except Exception as e:
+            print(f"ERROR: Failed to fetch genome: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print("WARNING: No URL/filename in config; assuming genome already on remote cluster")
+
+    # ── Submit job ────────────────────────────────────────────────────────────
     baseline.submit_job(
         ssh_host,
         bsub,

@@ -6,22 +6,24 @@ Provide a full Nextflow DSL2 pipeline that faithfully mirrors the legacy `earlGr
 
 ---
 
-## Status (2026-04-02): functionally complete, validation in progress
+## Status (2026-04-13): step 3 complete, baselines running
 
 ### What is implemented
 
 | Module                 | Process                | Legacy function mirrored                                          |
 | ---------------------- | ---------------------- | ----------------------------------------------------------------- |
-| `prepare_genome`       | `PREPARE_GENOME`       | `prepGenome()`                                                    |
+| `prepare_genome`       | `PREPARE_GENOME`       | `prepGenome()` — _now emits original genome for soft_mask_        |
 | `repeat_mask_initial`  | `REPEAT_MASK_INITIAL`  | `getRepeatMaskerFasta()` + `firstMask()` / `firstMaskCustomLib()` |
 | `build_database`       | `BUILD_DATABASE`       | `buildDB()`                                                       |
 | `de_novo_repeat`       | `DE_NOVO_REPEAT`       | `deNovo1()` — 3-attempt fallback                                  |
 | `classify_repeats`     | `CLASSIFY_REPEATS`     | `strainer()` — TEstrainer                                         |
 | `cluster_library`      | `CLUSTER_LIBRARY`      | `clust()` — optional cd-hit-est step                              |
 | `repeat_mask_final`    | `REPEAT_MASK_FINAL`    | `novoMask()`                                                      |
-| `merge_repeats`        | `MERGE_REPEATS`        | `mergeRep()` — loose then strict fallback                         |
+| `heliano`              | `HELIANO`              | `heliano_optional()` — converts RC.representative.bed → GFF       |
+| `merge_repeats`        | `MERGE_REPEATS`        | `mergeRep()` — accepts optional `-e` heliano GFF                  |
 | `calculate_divergence` | `CALCULATE_DIVERGENCE` | `calcDivRL()`                                                     |
 | `generate_summary`     | `GENERATE_SUMMARY`     | `charts()`                                                        |
+| `soft_mask`            | `SOFT_MASK`            | Stage 8.5 — `bedtools maskfasta -soft` on original genome         |
 
 `main.nf` wires all 10 processes with:
 
@@ -47,15 +49,31 @@ Provide a full Nextflow DSL2 pipeline that faithfully mirrors the legacy `earlGr
 - **`executor.perJobMemLimit = true`** (sanger profile) — required by the Sanger farm esub check that `-M` and `rusage[mem=]` must match.
 - **`beforeScript` conda activation** (sanger profile) — temporary measure to put `BuildDatabase`, `RepeatMasker`, etc. in PATH on sub-jobs. Will be replaced by container images in step 10.
 
----
+---Completed in this session (2026-04-13)
 
-## Remaining steps
+### 3d — Soft-mask support ✅
 
-### 3a — Validate first end-to-end run
+- Added `SOFT_MASK` process wrapping `bedtools maskfasta -soft`.
+- Modified `PREPARE_GENOME` to emit `original` output (original-named genome before ctg_N swapping).
+- Wired into `main.nf` conditional on `params.soft_mask == true`.
+- Baseline entries (`s_cerevisiae`, `a_thaliana`, `d_rerio`) have `soft_mask: true`.
+- Output: soft-masked FASTA in `results/softmasked.fasta`.
 
-- `yeast_r64_nextflow_005` (full yeast_R64 genome) in progress 2026-04-02.
-- On completion: `make nextflow-collect-metrics ID=yeast_R64 OUT_DIR=yeast_r64_nextflow_005`
-- Compare per-process walltime and output files against `yeast_R64_baseline_iter_001`.
+### 3g — HELIANO support ✅
+
+- Added `HELIANO` process: runs `heliano` and converts RC.representative.bed → GFF2.
+- Produces empty GFF (not NO_FILE) if no Helitrons found, avoiding sentinel complexity.
+- Modified `MERGE_REPEATS` to accept optional `heliano_gff` input and pass `-e` flag conditionally.
+- Wired into `main.nf` with `--heliano` boolean param, mapped through NO_FILE sentinel when disabled.
+- Updated `nextflow_submit.py` to read `heliano` and `soft_mask` flags from config and pass to Nextflow.
+
+### 3a — Baseline runs launched
+
+- **Yeast (s_cerevisiae_nextflow_001):** 12 MB test genome, soft_mask enabled.
+- **Arabidopsis (a_thaliana_nextflow_001):** ~125 MB scaffold, soft_mask enabled.
+- **Zebrafish (d_rerio_nextflow_001):** ~1.4 GB, soft_mask enabled.
+- Fetch behavior: smart auto-detection (skip if file exists on remote, fetch if new).
+- On completion of these runs, validate per-process walltime and output file counts. against `yeast_R64_baseline_iter_001`.
 - Acceptance: all output files present; repeat count within ±5% of baseline.
 - **Step 3 is not complete until this passes.**
 
@@ -63,54 +81,33 @@ Provide a full Nextflow DSL2 pipeline that faithfully mirrors the legacy `earlGr
 
 ### Gap analysis — legacy flags vs Nextflow pipeline
 
-| Legacy flag | Description                             | Nextflow status                            |
-| ----------- | --------------------------------------- | ------------------------------------------ |
-| `-r`        | RepeatMasker species (initial mask)     | ✅ `--repeat_species`                      |
-| `-l`        | Custom consensus library (initial mask) | ✅ `--custom_lib`                          |
-| `-t`        | Threads                                 | ✅ `--threads`                             |
-| `-i`        | BLAST iterations                        | ✅ `--blast_iterations`                    |
-| `-f`        | Flanking bp                             | ✅ `--flank_bases`                         |
-| `-n`        | Max consensus sequences                 | ✅ `--max_sequences`                       |
-| `-a`        | Min consensus sequences                 | ✅ `--min_sequences`                       |
-| `-c`        | Cluster library (cd-hit-est)            | ✅ `--cluster_library`                     |
-| `-m`        | Remove short annotations <100bp         | ✅ `--remove_short`                        |
-| `-d`        | Soft-mask genome at end                 | ⚠️ param exists, **no process** (3d below) |
-| `-e`        | HELIANO Helitron detection              | ❌ **not implemented** (3g below)          |
+| Legacy flag | Description                             | Nextflow status                      |
+| ----------- | --------------------------------------- | ------------------------------------ |
+| `-r`        | RepeatMasker species (initial mask)     | ✅ `--repeat_species`                |
+| `-l`        | Custom consensus library (initial mask) | ✅ `--custom_lib`                    |
+| `-t`        | Threads                                 | ✅ `--threads`                       |
+| `-i`        | BLAST iterations                        | ✅ `--blast_iterations`              |
+| `-f`        | Flanking bp                             | ✅ `--flank_bases`                   |
+| `-n`        | Max consensus sequences                 | ✅ `--max_sequences`                 |
+| `-a`        | Min consensus sequences                 | ✅ `--min_sequences`                 |
+| `-c`        | Cluster library (cd-hit-est)            | ✅ `--soft_mask` — SOFT_MASK process |
+| `-e`        | HELIANO Helitron detection              | ✅ `--heliano` — HELIANO process     |
 
-**`sweepUp()`** (copy key files to summaryFiles/) — the legacy script does this as a
-final collation step. Nextflow uses `publishDir` in each module instead; outputs
-land in `results/` directly. Functionally equivalent — no separate process needed,
-but the exact output directory structure should be verified against the legacy layout
-during 3a validation.
-
----
-
-### 3b — Stabilise component interfaces (feeds step 4)
-
-- Document exact inputs/outputs for each module once a clean run exists.
-- Ensure each process emits a `versions.yml` (nf-core convention) for reproducibility.
-
-### 3d — Implement `--soft_mask` (missing feature)
-
-- Legacy: after `sweepUp()`, runs:
-  ```bash
-  bedtools maskfasta -fi {original_genome} -bed {filteredRepeats.bed} \
-      -fo {species}.softmasked.fasta -soft
-  ```
-  Uses the **original** (pre-prep) genome, not the ctg_N-swapped version.
-- Nextflow plan:
-  1. Add a `SOFT_MASK` process wrapping `bedtools maskfasta`.
-  2. Inputs: original genome channel + `MERGE_REPEATS.out.bed` + `PREPARE_GENOME.out.dict`.
-  3. Back-swap contig headers using `backSwap.py` so output has original names.
-  4. Wire in `main.nf` conditional on `params.soft_mask == true`.
-  5. `bedtools` is already present in the dfam/tetools image.
+| Remaining steps
 
 ### 3e — Add `versions.yml` emission to all modules
 
 - Each process should output `versions.yml` capturing tool versions (nf-core convention).
 - Feed these into a `CUSTOM_DUMPSOFTWAREVERSIONS` collation step or equivalent.
+- Lower priority; run baseline validation first to ensure reproducibility is acceptable.
 
 ### 3f — Resource scaling (feeds step 5a)
+
+- CLASSIFY_REPEATS and MERGE_REPEATS are memory-sensitive; defaults are currently
+  set conservatively with retry escalation as the safety net.
+- Once trace data exists for all three genome sizes (s_cerevisiae, a_thaliana, d_rerio),
+  fit a linear scaling model and update `nextflow.config`. See `05_metrics_ab_harness.md § 5a` for the protocol.
+- Collect metrics using: `make nextflow-collect-metrics ID=<assembly> OUT_DIR=<run_dir>`ep 5a)
 
 - CLASSIFY_REPEATS and MERGE_REPEATS are memory-sensitive; defaults are currently
   set conservatively with retry escalation as the safety net.
@@ -147,19 +144,28 @@ nextflow/
   conf/
     dev.config
     variants.config                # AB testing variant definitions
+  modules/ with soft_mask and heliano wiring
+  nextflow.config                  # all params + resource presets + profiles
+  assets/NO_FILE                   # sentinel for optional path inputs
+  conf/
+    dev.config
+    variants.config                # AB testing variant definitions
   modules/
-    prepare_genome/main.nf
+    prepare_genome/main.nf          # now emits: genome, dict, original
     repeat_mask_initial/main.nf
     build_database/main.nf
     de_novo_repeat/main.nf
     classify_repeats/main.nf
     cluster_library/main.nf
     repeat_mask_final/main.nf
-    merge_repeats/main.nf
+    heliano/main.nf                # ✅ NEW: Helitron detection
+    merge_repeats/main.nf           # now accepts optional heliano_gff input
     calculate_divergence/main.nf
     generate_summary/main.nf
+    soft_mask/main.nf              # ✅ NEW: bedtools maskfasta on original genome
 devtools/
-  nextflow_submit.py
+  nextflow_submit.py               # now fetches genome and passes soft_mask/heliano flags
   Makefile
-  config/baseline_config.yaml      # ssh_host, paths, assemblies, bsub_defaults
+  config/baseline_config.yaml      # ssh_host, paths, assemblies with URLs + soft_mask flags
+  BASELINE_SETUP.md                # guide to smart fetch and baseline configuration
 ```

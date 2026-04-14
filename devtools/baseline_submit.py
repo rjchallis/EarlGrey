@@ -74,22 +74,21 @@ def ensure_remote_file(
     decompress: bool = True,
     remote_init: str = "",
     debug: bool = False,
-    skip_fetch: bool = False,
 ) -> str:
-    """Ensure the file exists on the remote host; fetch if missing (unless skip_fetch=True).
+    """Ensure the file exists on the remote host; fetch if missing.
+
+    Automatically checks if the file already exists on the remote side. If it
+    does and is not corrupted (>1000 bytes), skips the download. Otherwise,
+    fetches from the provided URL.
 
     If `decompress` is True and the filename ends with .gz, also create an
     uncompressed copy (using `gunzip -c`) and return the path to the
     uncompressed file. Returns the final path to provide to `earlGrey`.
-
-    If `skip_fetch=True`, assumes the file already exists on the remote and
-    only performs decompression/validation.
     """
     # remote-safe shell script that prints the final path as REMOTE_FINAL=...
     decompress_flag = "true" if decompress else "false"
     prefix = "set -x\n" if debug else ""
     remote_init_block = (remote_init.strip() + "\n") if remote_init else ""
-    skip_fetch_flag = "true" if skip_fetch else "false"
     cmd = textwrap.dedent(
         f"""
         set -euo pipefail
@@ -97,33 +96,26 @@ def ensure_remote_file(
         echo `pwd`  # debug: print remote working dir
         mkdir -p '{remote_path}'
 
-        # Check file and fetch (unless skip_fetch is True)
+        # Smart fetch: check if file exists locally first before downloading
         file_path='{remote_path}/{filename}'
-        if [ "{skip_fetch_flag}" = "false" ]; then
-            # Normal mode: check if file exists and is reasonable size
-            if [ -f "$file_path" ]; then
-                file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo 0)
-                if [ "$file_size" -lt 1000 ]; then
-                    echo "File $file_path exists but is too small ($file_size bytes); likely corrupted. Removing and refetching..."
-                    rm -f "$file_path"
-                else
-                    echo "Remote file $file_path exists (size: $file_size bytes); skipping download."
-                fi
-            fi
 
-            # Fetch if file doesn't exist or was removed
-            if [ ! -f "$file_path" ]; then
-                echo 'Fetching {filename} on remote host...'
-                (curl -L -f -o '{remote_path}/{filename}' '{url}' || wget -O '{remote_path}/{filename}' '{url}')
-            fi
-        else
-            # Skip-fetch mode: just verify file exists
-            if [ ! -f "$file_path" ]; then
-                echo "Error: File $file_path does not exist and skip_fetch=true"
-                exit 1
-            fi
+        # Check if file exists and is reasonable size (not corrupted stub)
+        if [ -f "$file_path" ]; then
             file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo 0)
-            echo "Using existing file $file_path (size: $file_size bytes)"
+            if [ "$file_size" -lt 1000 ]; then
+                echo "File $file_path exists but is too small ($file_size bytes); likely corrupted. Removing and refetching..."
+                rm -f "$file_path"
+            else
+                echo "Remote file $file_path exists (size: $file_size bytes); skipping download."
+            fi
+        fi
+
+        # Fetch if file doesn't exist or was removed as corrupted
+        if [ ! -f "$file_path" ]; then
+            echo 'Fetching {filename} from {url}...'
+            (curl -L -f -o '{remote_path}/{filename}' '{url}' || wget -O '{remote_path}/{filename}' '{url}')
+            file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo 0)
+            echo "Downloaded file (size: $file_size bytes)"
         fi
 
         # handle optional decompression of .gz files
@@ -493,7 +485,6 @@ def main(argv=None):
         threads = args.threads or asm.get("threads", cfg.get("bsub_defaults", {}).get("n", 4))
         repeat_term = asm.get("repeat_term", "")
         decompress_cfg = asm.get("decompress_gz", cfg.get("decompress_gz", True))
-        skip_fetch = asm.get("skip_fetch", False)
     else:
         if not args.filename:
             print("--filename is required when using --url", file=sys.stderr)
@@ -507,7 +498,6 @@ def main(argv=None):
         threads = args.threads or cfg.get("bsub_defaults", {}).get("n", 4)
         repeat_term = ""
         decompress_cfg = cfg.get("decompress_gz", True)
-        skip_fetch = False  # Always fetch for one-off URL runs
 
     remote_data_root = cfg["remote"]["data_dir"]
     remote_work_root = cfg["remote"]["work_dir"]
@@ -563,7 +553,6 @@ def main(argv=None):
         decompress=decompress,
         remote_init=remote_init,
         debug=args.debug_remote,
-        skip_fetch=skip_fetch,
     )
 
     # create the job script and submit
